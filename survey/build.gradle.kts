@@ -1,13 +1,13 @@
 @file:Suppress("SuspiciousCollectionReassignment")
 
-import com.quickbirdstudios.surveykit.configureLibraryPublication
+//import com.quickbirdstudios.surveykit.configureLibraryPublication
 
 plugins {
     id("com.android.library")
     kotlin("android")
     id("org.jetbrains.kotlin.android.extensions")
-    id("com.jfrog.bintray")
-    `maven-publish`
+    //id("com.jfrog.bintray")
+    //`maven-publish`
 }
 
 androidExtensions { isExperimental = true }
@@ -18,11 +18,18 @@ android {
     defaultConfig {
         minSdkVersion(Project.Android.minSdkVersion)
         targetSdkVersion(Project.Android.targetSdkVersion)
+
+        versionName = "v2.0.0-ait-SNAPSHOT"
+
         testInstrumentationRunner = Project.Android.testInstrumentationRunner
     }
 
     testOptions {
         animationsDisabled = true
+    }
+
+    lintOptions {
+        isAbortOnError = false
     }
 }
 
@@ -40,4 +47,8 @@ dependencies {
     testImplementation(Deps.Test.jUnitPlatform)
 }
 
-project.configureLibraryPublication()
+//project.configureLibraryPublication()
+
+apply {
+    from("../maven_publish_helper.gradle")
+}

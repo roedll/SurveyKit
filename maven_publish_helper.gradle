@@ -1,0 +1,198 @@
+apply plugin: 'maven-publish'
+
+def isAndroidSdkPresent() {
+    try {
+        android.getSdkDirectory()
+        return true
+    } catch(RuntimeException ex) {
+        return false
+    }
+}
+
+task androidJavadocs(type: Javadoc) {
+    // Check if Android SDK is initialized at all
+    if (isAndroidSdkPresent()) {
+        source = android.sourceSets.main.java.srcDirs
+        classpath += project.files(android.getBootClasspath().join(File.pathSeparator))
+        
+        def propVariants = null
+        if (android.hasProperty('applicationVariants')) {
+            propVariants = android.getProperty('applicationVariants')
+        } else if (android.hasProperty('libraryVariants')) {
+            propVariants = android.getProperty('libraryVariants')
+        }
+
+        if (propVariants != null) {
+            propVariants.all { variant ->
+                if (variant.name == 'release') {
+                    owner.classpath += variant.javaCompileProvider.get().classpath
+                }
+            }
+        }
+    }
+
+    exclude '**/R.html', '**/R.*.html', '**/index.html', '**/*.kt'
+}
+
+task androidJavadocsJar(type: Jar, dependsOn: androidJavadocs) {
+    archiveClassifier.set('javadoc')
+    from androidJavadocs.destinationDir
+}
+
+task androidSourcesJar(type: Jar) {
+    // Check if Android SDK is initialized at all
+    if (isAndroidSdkPresent()) {
+        archiveClassifier.set('sources')
+        from android.sourceSets.main.java.srcDirs
+    }
+}
+
+/*
+void halt() {
+    try {
+        throw new RuntimeException('Break');
+    } catch (RuntimeException e) {
+        print('Paused')
+    }
+}
+
+task iterateDeclaredDependencies {
+    doLast {
+        Object configs = configurations.all
+        halt();
+        print(configs)
+    }
+}
+*/
+
+def mavenNexusArcsmed = { RepositoryHandler handler, String repoUrl ->
+	handler.maven {
+		url repoUrl
+		credentials {
+			username project.findProperty("mavenUserArcsmed") ?: System.getenv('CI_MAVEN_USER_ARCSMED')
+			password project.findProperty("mavenPasswordArcsmed") ?: System.getenv('CI_MAVEN_PASS_ARCSMED')
+		}
+	}
+}
+
+// Because the components are created only during the afterEvaluate phase, you must
+// configure your publications using the afterEvaluate() lifecycle method.
+afterEvaluate {
+
+    allprojects {
+        tasks.withType(Javadoc) {
+            options.addStringOption('Xdoclint:none', '-quiet')
+            options.addStringOption('encoding', 'UTF-8')
+        }
+    }
+	
+	
+	
+	
+	/*
+	def propVariants = null
+	if (android.hasProperty('applicationVariants')) {
+		propVariants = android.getProperty('applicationVariants')
+	} else if (android.hasProperty('libraryVariants')) {
+		propVariants = android.getProperty('libraryVariants')
+	}
+
+	if (propVariants != null) {
+		propVariants.all { variant ->
+			println("VARIANT: " + variant + "\n\n")
+			println("VARIANT NAME: " + variant.name + "\n\n")
+			println("VARIANT PROPS: " + variant.properties + "\n\n")
+			println("VARIANT DATA: " + variant.variantData.properties + "\n\n")
+		}
+	}
+	*/
+	
+	println("COMPONENTS: " + project.components.properties + "\n\n")
+
+    publishing {
+        // Check if Android SDK is initialized at all
+        if (isAndroidSdkPresent()) {
+            publications {
+                // Creates a Maven publication called "mavenRelease"
+                mavenRelease(MavenPublication) {
+                    // Check for Android configuration and apply the component for the release build variant
+                    // See https://developer.android.com/studio/build/maven-publish-plugin
+					
+					//println("COMPONENTS: " + components.properties)
+					
+                    if (components.hasProperty('release_apk')) {
+                        project.logger.info('Prepare to publish APK')
+                        from components.release_apk
+                    } else if (components.hasProperty('release_aab')) {
+                        project.logger.info('Prepare to publish AAB')
+                        from components.release_aab
+                    } else if (components.hasProperty('release')) {
+                        project.logger.info('Prepare to publish AAR')
+                        from components.release
+                    }
+					//from components.release
+
+                    // Adds javadocs and sources as separate jars
+                    artifact androidJavadocsJar
+                    artifact androidSourcesJar
+					
+					
+					
+					println("ANDROID: " + android.properties + "\n\n")
+					println("ANDROID DEF PUB: " + android.defaultPublishConfig.properties + "\n\n")
+					//from components.aar
+
+                    // You can customize attributes of the publication here or in module's build.gradle file
+                    groupId GROUP
+                    artifactId POM_ARTIFACT_ID
+                    version android.defaultConfig.versionName
+
+                    // Other artifacts are added dynamically
+                    pom.withXml {
+                        final root = asNode()
+                        root.appendNode('name', POM_NAME)
+                        root.appendNode('description', POM_DESCRIPTION)
+                        root.appendNode('url', POM_SCM_URL)
+
+                        // Append some additional properties
+                        root.children().last() + {
+                            resolveStrategy = Closure.DELEGATE_FIRST
+
+                            licenses {
+                                license {
+                                    name POM_LICENCE_NAME
+                                    url POM_LICENCE_URL
+                                    distribution POM_LICENCE_DIST
+                                }
+                            }
+                            organization {
+                                name POM_ORG_NAME
+                                url POM_ORG_URL
+                            }
+                            developers {
+                                developer {
+                                    id POM_DEVELOPER_ID
+                                    name POM_DEVELOPER_NAME
+                                    email POM_DEVELOPER_MAIL
+                                }
+                            }
+                            scm {
+                                url POM_SCM_URL
+                                connection POM_SCM_CONNECTION
+                                developerConnection POM_SCM_DEV_CONNECTION
+                            }
+                        }
+                    }
+                }
+            }
+            repositories {
+                def releasesRepoUrl = NEXUS_REPO_URL
+                def snapshotsRepoUrl = NEXUS_REPO_URL_SNAPSHOT
+                def repoUrl = android.defaultConfig.versionName.endsWith('SNAPSHOT') ? snapshotsRepoUrl : releasesRepoUrl
+
+                mavenNexusArcsmed(delegate, repoUrl)
+            }
+        }
+    }
+
+}
