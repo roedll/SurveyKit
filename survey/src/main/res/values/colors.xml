@@ -28,10 +28,4 @@
     <color name="question_text_selected">@color/color_accent</color>
     <color name="scale_part_description_text">@color/survey_text</color>
     <color name="scale_part_selected_text">@color/survey_text</color>
-    <!--color name="question_info_title_text">@android:color/holo_red_light</color>
-    <color name="question_info_text_text">@android:color/holo_green_light</color>
-    <color name="question_text">@android:color/holo_blue_light</color>
-    <color name="question_text_selected">@android:color/holo_green_light</color>
-    <color name="scale_part_description_text">@android:color/holo_red_light</color>
-    <color name="scale_part_selected_text">@android:color/holo_green_light</color-->
 </resources>
